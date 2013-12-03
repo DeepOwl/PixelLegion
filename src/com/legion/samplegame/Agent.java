@@ -14,7 +14,7 @@ public class Agent {
 	boolean selected;
 	public Image image;
 	private ArrayList<Position> path;
-
+	private boolean doneFlag;
 
 
 	Position position;
@@ -34,8 +34,10 @@ public class Agent {
 		for(int i=0;i<p.size();i++){
 			path.add(new Position(p.get(i)));
 		}
-		if(path.size()>0)
+		if(path.size()>0){
 			this.destination = path.get(0);
+		}
+			
 	}
 	
 	// Behavioral Methods
@@ -61,12 +63,25 @@ public class Agent {
 		{
 			position.setX(destination.getX());
 			position.setY(destination.getY());
-			if(path.size()>0)
+			if(path.size()>0){
 				path.remove(0);
-			if(path.size()>0)
-				destination = path.get(0);
-
+				if(path.size()>0)
+					destination = path.get(0);
+				else{ //done
+					doneFlag = true;
+					System.out.println("DONE? " + doneFlag);
+				}
+			}
 		}
+	}
+
+
+	public boolean isDoneFlag() {
+		return doneFlag;
+	}
+
+	public void setDoneFlag(boolean doneFlag) {
+		this.doneFlag = doneFlag;
 	}
 
 	public void die() {

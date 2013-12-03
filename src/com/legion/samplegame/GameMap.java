@@ -76,7 +76,7 @@ public class GameMap {
 		int y = (int) fy; 
 		int x2 = (int) fx2; 
 		int y2 = (int) fy2;
-		System.out.println("adjacency: " + x + " "+ y + " "+ x2 + " "+ y2 + " ");
+		//System.out.println("adjacency: " + x + " "+ y + " "+ x2 + " "+ y2 + " ");
 		if(x==x2 && Math.abs(y-y2) == 1 ){
 			return true;
 		}

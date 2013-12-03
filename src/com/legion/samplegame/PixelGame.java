@@ -19,7 +19,7 @@ public class PixelGame {
 		if(x<0 || x>=map.getWidth() || y<0 || y>=map.getHeight())
 			return null;
 		for(int i=0;i<agentList.size();i++){
-			if(agentList.get(i).getGridPosition() == new Position(x, y)){
+			if(agentList.get(i).getGridPosition().equals(new Position(x, y))){
 				return agentList.get(i);
 			}
 		}
@@ -43,6 +43,34 @@ public class PixelGame {
 
 	public Agent agentOnGrid(Position p) {
 		return agentOnGrid((int)p.getX(), (int)p.getY());
+	}
+
+	public void updateAgents(float deltaTime) {
+		boolean someoneDone = false;
+		for(int i=0;i<agentList.size();i++){
+			agentList.get(i).update(deltaTime);
+			if(agentList.get(i).isDoneFlag()){
+				someoneDone = true;
+				agentList.get(i).setDoneFlag(false);
+			}
+		}
+		if (someoneDone){
+			nextAgentTurn();			
+		}
+	}
+	private void nextAgentTurn() {
+		// TODO Auto-generated method stub
+		agentOrderList.add(agentOrderList.remove(0));
+		System.out.println(agentOrderList);
+	}
+
+	public int numAgents(){
+		return agentList.size();
+	}
+	public Agent getAgent(int i){
+		if(i < 0 || i >= numAgents()){
+			return null;
+		} else return agentList.get(i);
 	}
 
 }

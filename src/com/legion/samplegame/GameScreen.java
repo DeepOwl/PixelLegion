@@ -68,7 +68,6 @@ public class GameScreen extends Screen {
     	
         character2.setGridPosition(new Position(4, 6));
     	character2.setDestination(new Position(4, 6));
-    	character2.setDestination(100, 100);
     	character2.image = Assets.character1;
     	//characters = new ArrayList<Agent>();
     	//characters.add(character1);
@@ -164,30 +163,7 @@ public class GameScreen extends Screen {
             Position eventPositionInGrid = new Position((int)(eventPositionInWorld.getX()/40), (int)(eventPositionInWorld.getY()/40));
             boolean wasSomethingSelected = false;
             if (event.type == TouchEvent.TOUCH_DOWN) {
-
-                if (event.x < 100) {
-                	wasSomethingSelected = true;
-                	viewX -= 100;
-                	if (viewX < 0) viewX = 0;
-                }
-                if (event.x > MAX_X-100) {
-                	wasSomethingSelected = true;
-                	viewX +=100;
-                	if (viewX > Assets.background.getWidth()*zoom - MAX_X) viewX = (int) (Assets.background.getWidth()*zoom - MAX_X);
-                }
-                if (event.y < 100) {
-                	wasSomethingSelected = true;
-                	viewY -= 100;
-                	if (viewY < 0) viewY = 0;
-                }
-                if (event.y > MAX_Y-100) {
-                	wasSomethingSelected = true;
-                	viewY+=100;
-                	if (viewY > Assets.background.getHeight()*zoom - MAX_Y) viewY = (int) (Assets.background.getHeight()*zoom - MAX_Y);
-                }
-                if (event.x < 100 || event.x > MAX_X-100 ||event.y < 100 ||event.y > MAX_Y-100){
-                	//Do Nothing since the screen moved on down press
-                } else if (playstate == PlayState.AwaitingSelection) {
+                if (playstate == PlayState.AwaitingSelection) {
                 	//check if the player is starting to draw a path
 	                if(pgame.agentOnGrid(eventPositionInGrid) == pgame.getCurrentAgent()){
 	                	playstate = PlayState.SelectingPath;
@@ -196,55 +172,16 @@ public class GameScreen extends Screen {
                 
             }
 
-            if (event.type == TouchEvent.TOUCH_UP) {
-                if (event.x < 100 || event.x > MAX_X-100 ||event.y < 100 ||event.y > MAX_Y-100){
-                	//Do Nothing since the screen moved on down press
-                } else {
-	              
-	                for(int j = 0 ; j<characters.size(); j++)
-	                {
-		                if (characters.get(j).getCenterPosition().distanceTo(eventPositionInWorld) < 40/zoom)
-		        		{
-		                	
-		                	if(j == selectedIndex){
-		                		selectedIndex = -1; //toggle off selection     		
-		                	}
-		                	else {
-		                		selectedIndex = j;
-		                	}
-		                	wasSomethingSelected = true;
-		        		}
-	                }
-	                if(pause.isHitBy(eventPositionOnScreen))
-	                {
-	                	state = GameState.Paused;
-	                	wasSomethingSelected = true;
-	                }        
-	                if(!wasSomethingSelected) //nothing was selected so move selected objects to location
-	                {
-	                	for(int j=0; j<characters.size(); j++)
-	            		{
-	                		if(j == selectedIndex){
-	                			ArrayList<Position> path = new ArrayList<Position>();
-	                			msg = ""+path.size();
-	                			path = map.pathFind((int)(characters.get(j).getCenterPosition().getX()/40), 
-	                					(int)(characters.get(j).getCenterPosition().getY()/40), 
-	                					(int)(eventPositionInGrid.getX()), 
-	                					(int)(eventPositionInGrid.getY()));
-	                			//characters.get(j).setDestination(eventPositionInWorld);
-	                			//for(int k=0; k<path.size();k++){
-	                			//	path.get(k).setX(path.get(k).getX()*40+20);
-	                			//	path.get(k).setY(path.get(k).getY()*40+10);
-	                			//}
-	                			characters.get(j).setPath(path);
-	                		}
-	            		}
-	                }
-                }
+            if (event.type == TouchEvent.TOUCH_UP) {            
+                if(pause.isHitBy(eventPositionOnScreen))
+                {
+                	state = GameState.Paused;
+                	wasSomethingSelected = true;
+                }        
+
                 if(playstate == PlayState.SelectingPath){
 	                playstate = PlayState.AwaitingSelection;
-	                characters.get(0).setPath(selpath);
-	                System.out.println("set path " + selpath);
+	                pgame.getCurrentAgent().setPath(selpath);
 	                selpath.clear();
 
                 }
@@ -262,7 +199,7 @@ public class GameScreen extends Screen {
 	            		if(selpath.size()>1 && selpath.get(selpath.size()-2).equals(eventPositionInGrid)){//just went here
 	            			selpath.remove(selpath.size()-1);
 	            		}
-	            		else if(selpath.size()>0 && map.isAdjacent(eventPositionInGrid.getX(), eventPositionInGrid.getY(), selpath.get(selpath.size()-1).getX(), selpath.get(selpath.size()-1).getY())){
+	            		else if(selpath.size()>0 && pgame.getMap().isAdjacent(eventPositionInGrid.getX(), eventPositionInGrid.getY(), selpath.get(selpath.size()-1).getX(), selpath.get(selpath.size()-1).getY())){
 	            			selpath.add(eventPositionInGrid);
 	            		}
 	            		lastGridDrag = eventPositionInGrid;
@@ -274,7 +211,6 @@ public class GameScreen extends Screen {
             		} else {
             			viewX -= eventPositionOnScreen.getX() - lastScreenDrag.getX();
             			viewY -= eventPositionOnScreen.getY() - lastScreenDrag.getY();
-            			//System.out.println(eventPositionOnScreen.getX() - lastScreenDrag.getX())
             			if (viewX > Assets.background.getWidth()*zoom - MAX_X) viewX = (int) (Assets.background.getWidth()*zoom - MAX_X);
             			if (viewY > Assets.background.getHeight()*zoom - MAX_Y) viewY = (int) (Assets.background.getHeight()*zoom - MAX_Y);
             			if (viewX < 0) viewX = 0;
@@ -296,10 +232,7 @@ public class GameScreen extends Screen {
         // 3. Call individual update() methods here.
         // This is where all the game updates happen.
         // For example, robot.update();
-        for(int i=0; i<characters.size(); i++)
-    	{
-    		characters.get(i).update(deltaTime);
-    	}
+        pgame.updateAgents(deltaTime);
    
     }
 
@@ -350,17 +283,18 @@ public class GameScreen extends Screen {
         	Position p = selpath.get(i);
         	g.drawScaledImage(Assets.border, w2sx((int)(p.getX()*GameMap.SPRITE_WIDTH)), w2sy((int)(p.getY()*GameMap.SPRITE_HEIGHT)), zoom);
         }
-        for(int i=0; i<characters.size(); i++)
+        for(int i=0; i<pgame.numAgents(); i++)
     	{
-    		if (i == selectedIndex)
-    		{
-    			g.drawScaledImage(Assets.haloGreen, 
-    					(int)(w2sx((int)(characters.get(i).getGridPosition().getX()*40))), 
-    					(int)(w2sy((int)(characters.get(i).getGridPosition().getY()*40))-20*zoom), zoom);
-    		}
-    		g.drawScaledImage(characters.get(i).image,  
-    				(int)(w2sx((int)(characters.get(i).getGridPosition().getX()*40))), 
-    				(int)(w2sy((int)(characters.get(i).getGridPosition().getY()*40))-GameMap.SPRITE_VERT_OFFSET*zoom), zoom);
+    		//if (i == selectedIndex)
+    		//{
+    		//	g.drawScaledImage(Assets.haloGreen, 
+    		//			(int)(w2sx((int)(characters.get(i).getGridPosition().getX()*40))), 
+    		//			(int)(w2sy((int)(characters.get(i).getGridPosition().getY()*40))-20*zoom), zoom);
+    		//}
+    					
+    		g.drawScaledImage(pgame.getAgent(i).image,  
+    				(int)(w2sx((int)(pgame.getAgent(i).getGridPosition().getX()*40))), 
+    				(int)(w2sy((int)(pgame.getAgent(i).getGridPosition().getY()*40))-GameMap.SPRITE_VERT_OFFSET*zoom), zoom);
     	}
         	
         
@@ -407,30 +341,30 @@ public class GameScreen extends Screen {
     private void drawTerrain()
     {
     	Graphics g = game.getGraphics();
-    	for(int y = 0; y<map.getHeight(); y++){
-    		for(int x=0; x<map.getWidth(); x++){
-    			if(map.isRiver(x,y)){
-    				if(map.sameToNorth(x, y, true)){//NORTH RIVER
-    					if(map.sameToSouth(x, y, true)){//NORTH and SOUTH RIVER
+    	for(int y = 0; y<pgame.getMap().getHeight(); y++){
+    		for(int x=0; x<pgame.getMap().getWidth(); x++){
+    			if(pgame.getMap().isRiver(x,y)){
+    				if(pgame.getMap().sameToNorth(x, y, true)){//NORTH RIVER
+    					if(pgame.getMap().sameToSouth(x, y, true)){//NORTH and SOUTH RIVER
     						g.drawScaledImage(Assets.tile_river_NS, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
-    					else if(map.sameToWest(x, y, true)){//NORTH and WEST RIVER
+    					else if(pgame.getMap().sameToWest(x, y, true)){//NORTH and WEST RIVER
     						g.drawScaledImage(Assets.tile_river_WN, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
-    					else if(map.sameToEast(x, y, true)){//NORTH and EAST RIVER
+    					else if(pgame.getMap().sameToEast(x, y, true)){//NORTH and EAST RIVER
     						g.drawScaledImage(Assets.tile_river_NE, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
     				}
-    				else if(map.sameToSouth(x, y, true)){//SOUTH RIVER
-    					if(map.sameToWest(x, y, true)){//SOUTH and WEST RIVER
+    				else if(pgame.getMap().sameToSouth(x, y, true)){//SOUTH RIVER
+    					if(pgame.getMap().sameToWest(x, y, true)){//SOUTH and WEST RIVER
     						g.drawScaledImage(Assets.tile_river_WS, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
-    					else if(map.sameToEast(x, y, true)){//SOUTH and EAST RIVER
+    					else if(pgame.getMap().sameToEast(x, y, true)){//SOUTH and EAST RIVER
     						g.drawScaledImage(Assets.tile_river_SE,  w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
     				} 
-    				else if(map.sameToWest(x, y, true)){//WEST RIVER
-    					if(map.sameToEast(x, y, true)){//SOUTH and EAST RIVER
+    				else if(pgame.getMap().sameToWest(x, y, true)){//WEST RIVER
+    					if(pgame.getMap().sameToEast(x, y, true)){//SOUTH and EAST RIVER
     						g.drawScaledImage(Assets.tile_river_EW, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
     					}
     				} 
