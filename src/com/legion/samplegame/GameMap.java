@@ -7,18 +7,20 @@ import android.util.Log;
 
 
 public class GameMap {
-	
+	public static enum dir {
+		NORTH, SOUTH, EAST, WEST
+	}
 	public static final int SPRITE_WIDTH = 40;
 	public static final int SPRITE_HEIGHT = 40;
 	public static final int SPRITE_VERT_OFFSET = 10;
-	char[][] map = {	{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'r', 'r', 'r', 'r', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'g', 'g'},
-						{ 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'g', 'g'},
+	char[][] map = {	{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'p', 'g'},
+						{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'p', 'g'},
+						{ 'g', 'g', 'g', 'g', 'g', 'g', 'r', 'g', 'p', 'g'},
+						{ 'g', 'g', 'g', 'r', 'r', 'r', 'r', 'g', 'p', 'g'},
+						{ 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'p', 'p'},
+						{ 'g', 'g', 'g', 'r', 'g', 'g', 'p', 'p', 'p', 'p'},
+						{ 'p', 'p', 'p', 'b', 'p', 'p', 'p', 'p', 'p', 'g'},
+						{ 'g', 'g', 'g', 'r', 'g', 'g', 'p', 'p', 'p', 'p'},
 						{ 'g', 'g', 'g', 'r', 'r', 'g', 'g', 'g', 'g', 'g'},
 						{ 'g', 'g', 'g', 'g', 'r', 'g', 'g', 'g', 'g', 'g'}, };
 	private int width;
@@ -34,19 +36,61 @@ public class GameMap {
 		width = map[0].length;
 		height = map.length;
 	}
-	
+	public boolean isTraversible(Position p){
+		if(!inMap((int)(p.getX()), (int)(p.getY()))){
+			return false;
+		} else if (map[(int)(p.getY())][(int)(p.getX())] == 'r'){
+			return false;
+		} else return true;
+	}
+	public String getTileContext(int x, int y){
+		String ret = "";
+		if(inMap(x,y))ret+=map[y][x];
+		else ret+='0';
+		ret+=tileTo(dir.NORTH, x, y);
+		ret+=tileTo(dir.EAST, x, y);
+		ret+=tileTo(dir.SOUTH, x, y);
+		ret+=tileTo(dir.WEST, x, y);
+		return ret;
+	}
 	boolean isRiver(int x, int y){
 		if(map[y][x] == 'r')
 			return true;
 		else return false;
 	}
-	
+	boolean isPath(int x, int y){
+		if(map[y][x] == 'p')
+			return true;
+		else return false;
+	}
 	boolean isGrass(int x, int y){
 		if(map[y][x] == 'g')
 			return true;
 		else return false;
 	}
-	
+	boolean inMap(int x, int y){
+		return (x>=0 && x<width && y>=0 && y<height);
+	}
+	char tileTo(dir d, int x, int y){
+		char ret = '0';
+		switch (d){
+		case WEST:
+			if(inMap(x-1,y)) ret = map[y][x-1];
+			break;
+		case EAST:
+			if(inMap(x+1,y)) ret = map[y][x+1];
+			break;
+		case NORTH:
+			if(inMap(x,y-1)) ret = map[y-1][x];
+			break;
+		case SOUTH:
+			if(inMap(x,y+1)) ret = map[y+1][x];
+			break;
+		default:
+			break;
+		}
+		return ret;
+	}
 	boolean sameToNorth(int x, int y, boolean trueIfEdge){
 		if(y == 0 ) return trueIfEdge;
 		if(map[y-1][x] == map[y][x])
@@ -112,7 +156,7 @@ public class GameMap {
 		return path;
 	}
 	
-	ArrayList<Position> getNeighbors(Position pos){
+	public ArrayList<Position> getNeighbors(Position pos){
 		int x = (int)pos.getX();
 		int y = (int)pos.getY();
 		ArrayList<Position> neighbors = new ArrayList<Position>();

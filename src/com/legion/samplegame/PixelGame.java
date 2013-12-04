@@ -6,12 +6,16 @@ public class PixelGame {
 	private ArrayList<Agent> agentList;
 	private ArrayList<Agent> agentOrderList;
 	private GameMap map;
-	
+	private GameScreen screen;
+    public static enum state {
+    	WAITING, SELECTING_PATH, MOVING, SELECTING_ACTION, SELECTING_TARGET
+    }
+    public state st;
 	public PixelGame(){
 		loadGameMap();
 		agentList = new ArrayList<Agent>();
 		agentOrderList = new ArrayList<Agent>();
-		
+		st = state.WAITING;
 	}
 	
 	//returns null if no one
@@ -55,7 +59,9 @@ public class PixelGame {
 			}
 		}
 		if (someoneDone){
-			nextAgentTurn();			
+			//nextAgentTurn();
+			//screen.doneMoving();
+			st = state.SELECTING_ACTION;
 		}
 	}
 	private void nextAgentTurn() {
@@ -71,6 +77,12 @@ public class PixelGame {
 		if(i < 0 || i >= numAgents()){
 			return null;
 		} else return agentList.get(i);
+	}
+
+	public ArrayList<Position> getCurrentAgentTargets() {
+		//assume melee range only
+		return map.getNeighbors(getCurrentAgent().getGridPosition());
+		
 	}
 
 }

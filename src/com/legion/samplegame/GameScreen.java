@@ -1,44 +1,34 @@
 package com.legion.samplegame;
 
 import java.util.ArrayList;
-import java.util.Vector;
 import java.util.List;
 
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Point;
 
-
-
-import android.util.Log;
-import android.view.Display;
 
 import com.legion.framework.Game;
 import com.legion.framework.Graphics;
 import com.legion.framework.Image;
 import com.legion.framework.Screen;
 import com.legion.framework.Input.TouchEvent;
-import com.legion.samplegame.*;
 
 public class GameScreen extends Screen {
     enum GameState {
         Ready, Running, Paused, GameOver
     }
-    enum PlayState {
-    	AwaitingSelection, SelectingPath, PerformingAction
-    }
+
 
     GameState state = GameState.Ready;
-    PlayState playstate = PlayState.AwaitingSelection;
+    //PlayState playstate = PlayState.AwaitingSelection;
     // Variable Setup
     // You would create game objects here.
     PixelGame pgame;
-    //ArrayList<Agent> characters;
-    //characters.add(character1);
     int livesLeft = 1;
     Paint paint;
     GUIObject pause;
     GUIObject play;
+    GUIObject attack;
     int viewX, viewY;
     float zoom;
     int MAX_X = 1280;
@@ -49,21 +39,22 @@ public class GameScreen extends Screen {
     private ArrayList<Position> selpath;
     Position lastGridDrag;
     Position lastScreenDrag;
+    Image[][] imageMap;
 
     public GameScreen(Game game) {
         super(game);
         viewX = 0;
         viewY = 0;
         pgame = new PixelGame();
-        //map = new GameMap();
         selpath = new ArrayList<Position>();
+        determineTiles();
         lastGridDrag = null;
         lastScreenDrag = null;
         // Initialize game objects here
         Agent character1 = new Agent();
         Agent character2 = new Agent();
-        character1.setGridPosition(new Position(3, 4));
-    	character1.setDestination(new Position(3, 4));
+        character1.setGridPosition(new Position(1, 1));
+    	character1.setDestination(new Position(1, 1));
     	character1.image = Assets.character1;
     	
         character2.setGridPosition(new Position(4, 6));
@@ -84,9 +75,12 @@ public class GameScreen extends Screen {
         
         pause = new GUIObject(1100, 50, Assets.pauseLogo);
         play = new GUIObject(1100, 50, Assets.playLogo);
+        attack = new GUIObject(900, 100, Assets.attackLogo);
     }
 
-    public Position worldToScreen(int x, int y)
+
+
+	public Position worldToScreen(int x, int y)
     {
     	return new Position(x - viewX, y - viewY);
     	
@@ -163,10 +157,10 @@ public class GameScreen extends Screen {
             Position eventPositionInGrid = new Position((int)(eventPositionInWorld.getX()/40), (int)(eventPositionInWorld.getY()/40));
             boolean wasSomethingSelected = false;
             if (event.type == TouchEvent.TOUCH_DOWN) {
-                if (playstate == PlayState.AwaitingSelection) {
+                if (pgame.st == PixelGame.state.WAITING) {
                 	//check if the player is starting to draw a path
 	                if(pgame.agentOnGrid(eventPositionInGrid) == pgame.getCurrentAgent()){
-	                	playstate = PlayState.SelectingPath;
+	                	pgame.st = PixelGame.state.SELECTING_PATH;
 	                }
                 }
                 
@@ -179,16 +173,23 @@ public class GameScreen extends Screen {
                 	wasSomethingSelected = true;
                 }        
 
-                if(playstate == PlayState.SelectingPath){
-	                playstate = PlayState.AwaitingSelection;
-	                pgame.getCurrentAgent().setPath(selpath);
+                if(pgame.st == PixelGame.state.SELECTING_PATH){
+                	if(selpath.size() > 1 ){
+    	                pgame.getCurrentAgent().setPath(selpath);
+                	}
+                	pgame.st = PixelGame.state.WAITING;
 	                selpath.clear();
 
+                }
+                if(pgame.st == PixelGame.state.SELECTING_ACTION){
+                	if(attack.isHitBy(eventPositionOnScreen)){
+                		pgame.st = PixelGame.state.SELECTING_TARGET;
+                	}
                 }
                 lastScreenDrag = null;
             }
             if (event.type == TouchEvent.TOUCH_DRAGGED) {
-            	if (playstate == PlayState.SelectingPath){
+            	if (pgame.st == PixelGame.state.SELECTING_PATH){
 	
 	            	
 	            	if(lastGridDrag == null || selpath.size() == 0){
@@ -199,8 +200,14 @@ public class GameScreen extends Screen {
 	            		if(selpath.size()>1 && selpath.get(selpath.size()-2).equals(eventPositionInGrid)){//just went here
 	            			selpath.remove(selpath.size()-1);
 	            		}
-	            		else if(selpath.size()>0 && pgame.getMap().isAdjacent(eventPositionInGrid.getX(), eventPositionInGrid.getY(), selpath.get(selpath.size()-1).getX(), selpath.get(selpath.size()-1).getY())){
-	            			selpath.add(eventPositionInGrid);
+	            		else if(selpath.size()>0 && pgame.getMap().isAdjacent(eventPositionInGrid.getX(), eventPositionInGrid.getY(), selpath.get(selpath.size()-1).getX(), selpath.get(selpath.size()-1).getY())
+	            				&& !selpath.contains(eventPositionInGrid)
+	            				&& pgame.getMap().isTraversible(eventPositionInGrid)){
+	            			if(selpath.size() < 1 || pgame.agentOnGrid((int)(eventPositionInGrid.getX()), (int)(eventPositionInGrid.getY())) == null){
+	            				selpath.add(eventPositionInGrid);
+	            			}else{
+	            				
+	            			}
 	            		}
 	            		lastGridDrag = eventPositionInGrid;
 	            	}
@@ -227,6 +234,7 @@ public class GameScreen extends Screen {
         if (livesLeft == 0) {
             state = GameState.GameOver;
         }
+        
         
         
         // 3. Call individual update() methods here.
@@ -272,39 +280,35 @@ public class GameScreen extends Screen {
         Graphics g = game.getGraphics();
 
         // First draw the game elements.
-
-
-        
         // Example:
         g.drawScaledImage(Assets.background, viewX * -1, viewY * -1, zoom);
         this.drawTerrain();
         //g.drawScaledImage(Assets.character1, 900, 200, (float)4.0);
-        for(int i=0; i<selpath.size();i++){
+        //DRAW TERRAIN OVERLAYS
+        if(pgame.st == PixelGame.state.SELECTING_PATH){
+        	for(int i=0; i<selpath.size();i++){
         	Position p = selpath.get(i);
         	g.drawScaledImage(Assets.border, w2sx((int)(p.getX()*GameMap.SPRITE_WIDTH)), w2sy((int)(p.getY()*GameMap.SPRITE_HEIGHT)), zoom);
+        	}
+        } else if(pgame.st == PixelGame.state.SELECTING_TARGET){
+        	ArrayList<Position> targets = pgame.getCurrentAgentTargets();
+        	for (int i=0;i<targets.size();i++){
+        		g.drawScaledImage(Assets.border, w2sx((int)(targets.get(i).getX()*GameMap.SPRITE_WIDTH)), w2sy((int)(targets.get(i).getY()*GameMap.SPRITE_HEIGHT)), zoom);
+        	}
         }
         for(int i=0; i<pgame.numAgents(); i++)
     	{
-    		//if (i == selectedIndex)
-    		//{
-    		//	g.drawScaledImage(Assets.haloGreen, 
-    		//			(int)(w2sx((int)(characters.get(i).getGridPosition().getX()*40))), 
-    		//			(int)(w2sy((int)(characters.get(i).getGridPosition().getY()*40))-20*zoom), zoom);
-    		//}
-    					
+    		if(pgame.getCurrentAgent() == pgame.getAgent(i))		{
+        		g.drawScaledImage(Assets.haloYellow,  
+        				(int)(w2sx((int)(pgame.getAgent(i).getGridPosition().getX()*40))), 
+        				(int)(w2sy((int)(pgame.getAgent(i).getGridPosition().getY()*40))-GameMap.SPRITE_VERT_OFFSET*zoom), zoom);
+    		}
     		g.drawScaledImage(pgame.getAgent(i).image,  
     				(int)(w2sx((int)(pgame.getAgent(i).getGridPosition().getX()*40))), 
     				(int)(w2sy((int)(pgame.getAgent(i).getGridPosition().getY()*40))-GameMap.SPRITE_VERT_OFFSET*zoom), zoom);
     	}
         	
-        
 
-       /* g.drawString(""
-        		//+"(" + character1.getCenterPosition().getX() + " " + character1.getCenterPosition().getY() +")("
-        		+ "("+ character1.getDestination().getX()+ " " + character1.getDestination().getY() + ")" 
-        		//+ "D" + character1.getDirection() + "\t" 
-        		//+ character1.getCenterPosition().distanceTo(character1.getDestination())
-                ,640, 300, paint);*/
         g.drawString(msg,640, 300, paint);
         
         // Secondly, draw the UI above the game elements.
@@ -338,45 +342,64 @@ public class GameScreen extends Screen {
         System.gc();
     }
     
+    private void determineTiles() {
+    	imageMap = new Image[pgame.getMap().getWidth()][pgame.getMap().getHeight()];
+    	for(int y = 0; y<pgame.getMap().getHeight(); y++){
+    		for(int x=0; x<pgame.getMap().getWidth(); x++){
+    			String cxt = pgame.getMap().getTileContext(x, y);
+    			//if(x==4 && y==3)System.out.println(cxt);
+    			if(cxt.matches("r[rb0][^r][rb0][^r]")){
+    				imageMap[x][y] = Assets.tile_river_NS;
+    			} else if(cxt.matches("r[^r][rb0][^r][rb0]")){
+    				imageMap[x][y] = Assets.tile_river_EW;
+    			} else if(cxt.matches("rr[^r][^r]r")){
+    				imageMap[x][y] = Assets.tile_river_WN;
+    			} else if(cxt.matches("rrr[^r][^r]")){
+    				imageMap[x][y] = Assets.tile_river_NE;
+    			} else if(cxt.matches("r[^r][^r]rr")){
+    				imageMap[x][y] = Assets.tile_river_WS;
+    			} else if(cxt.matches("r[^r]rr[^r]")){
+    				imageMap[x][y] = Assets.tile_river_SE;
+    			} else if(cxt.matches("p[pb0][^p][pb0][^p]")){
+    				imageMap[x][y] = Assets.tile_path_NS;
+    			} else if(cxt.matches("p[^p][pb0][^rp][pb0]")){
+    				imageMap[x][y] = Assets.tile_path_EW;
+    			} else if(cxt.matches("pp[^p][^p]p")){
+    				imageMap[x][y] = Assets.tile_path_WN;
+    			} else if(cxt.matches("ppp[^p][^p]")){
+    				imageMap[x][y] = Assets.tile_path_NE;
+    			} else if(cxt.matches("p[^p][^p]pp")){
+    				imageMap[x][y] = Assets.tile_path_WS;
+    			} else if(cxt.matches("p[^p]pp[^p]")){
+    				imageMap[x][y] = Assets.tile_path_SE;
+    			} else if(cxt.matches("brprp")){
+    				imageMap[x][y] = Assets.tile_bridge_EW;
+    			} else if(cxt.matches("bprpr")){
+    				imageMap[x][y] = Assets.tile_bridge_NS;
+    			} else if(cxt.matches("p[^p][p0][p0][p0]")){
+    				imageMap[x][y] = Assets.tile_path_ESW;
+    			} else if(cxt.matches("p[p0][^p][p0][p0]")){
+    				imageMap[x][y] = Assets.tile_path_NSW;
+    			} else if(cxt.matches("p[p0][p0][^p][p0]")){
+    				imageMap[x][y] = Assets.tile_path_NWE;
+    			} else if(cxt.matches("p[p0][p0][p0][^p]")){
+    				imageMap[x][y] = Assets.tile_path_NSE;
+    			} else if(cxt.matches("p[p0][p0][p0][p0]")){
+    				imageMap[x][y] = Assets.tile_path_NESW;
+    			} else{
+    				imageMap[x][y] = Assets.tile_grass;
+    			}
+    		}
+    	}
+	}
+    
     private void drawTerrain()
     {
     	Graphics g = game.getGraphics();
     	for(int y = 0; y<pgame.getMap().getHeight(); y++){
     		for(int x=0; x<pgame.getMap().getWidth(); x++){
-    			if(pgame.getMap().isRiver(x,y)){
-    				if(pgame.getMap().sameToNorth(x, y, true)){//NORTH RIVER
-    					if(pgame.getMap().sameToSouth(x, y, true)){//NORTH and SOUTH RIVER
-    						g.drawScaledImage(Assets.tile_river_NS, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    					else if(pgame.getMap().sameToWest(x, y, true)){//NORTH and WEST RIVER
-    						g.drawScaledImage(Assets.tile_river_WN, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    					else if(pgame.getMap().sameToEast(x, y, true)){//NORTH and EAST RIVER
-    						g.drawScaledImage(Assets.tile_river_NE, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    				}
-    				else if(pgame.getMap().sameToSouth(x, y, true)){//SOUTH RIVER
-    					if(pgame.getMap().sameToWest(x, y, true)){//SOUTH and WEST RIVER
-    						g.drawScaledImage(Assets.tile_river_WS, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    					else if(pgame.getMap().sameToEast(x, y, true)){//SOUTH and EAST RIVER
-    						g.drawScaledImage(Assets.tile_river_SE,  w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    				} 
-    				else if(pgame.getMap().sameToWest(x, y, true)){//WEST RIVER
-    					if(pgame.getMap().sameToEast(x, y, true)){//SOUTH and EAST RIVER
-    						g.drawScaledImage(Assets.tile_river_EW, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    					}
-    				} 
-    			} else {//NO RIVER
-					g.drawScaledImage(Assets.tile_grass, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    			}
-    			//g.drawScaledImage(Assets.border, w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);
-    		}
-    	}
-    		
-    	
-    
+    			g.drawScaledImage(imageMap[x][y], w2sx(x*GameMap.SPRITE_WIDTH), w2sy(y*GameMap.SPRITE_HEIGHT), zoom);}
+    	}  
     }
 
     private void drawReadyUI() {
@@ -392,6 +415,9 @@ public class GameScreen extends Screen {
         Graphics g = game.getGraphics();
         //g.drawImage(Assets.menu, x, y)
         g.drawImage(pause.getImage(), pause.getULX(), pause.getULY());
+        if(pgame.st == PixelGame.state.SELECTING_ACTION){
+        	g.drawImage(attack.getImage(), attack.getULX(), attack.getULY());
+        }
     }
 
     private void drawPausedUI() {
@@ -429,6 +455,7 @@ public class GameScreen extends Screen {
     public void backButton() {
         pause();
     }
+
 
     
 }
